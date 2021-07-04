@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import inquirer
 
 from ..config.config import Config
@@ -10,7 +11,7 @@ import math
 class HealthCareManager:
     def __init__(self):
         self.config = Config()
-        self._choices = ["Analyze data"]
+        self._choices = ["Analyze data", "Clean Data"]
         self._questions = [
             inquirer.List(
                 "options",
@@ -26,6 +27,10 @@ class HealthCareManager:
 
         if answer["options"] == self._choices[0]:
             self.analyze_data()
+
+        elif answer["options"] == self._choices[1]:
+        
+            self.clean_data()
         else:
             exit(0)
 
@@ -73,7 +78,6 @@ class HealthCareManager:
         scatter.set_title("BMI in relation with Average Glucose Level")
         scatter.set_xlabel("BMI")
         scatter.set_ylabel("Average Glucose Level")
-
         clb = plt.colorbar(im)
         clb.ax.tick_params(labelsize=8)
         clb.ax.set_title("Age", fontsize=8)
@@ -89,3 +93,21 @@ class HealthCareManager:
             pie_axes[math.floor(i / 4)][i % 4].set_title(item)
 
         plt.show()
+
+    def clean_data(self):
+        """Runs the second question and cleans data"""
+
+        # Replace the unknown values of the smoking columns as nan, so pandas can auto remove
+        data = pd.read_csv(self.config.health_care_csv_path, na_values=['Unknown'])
+
+        # Method ONE: Remove columns
+        removed_column_method = data.copy()
+        removed_column_method.dropna(how="any", axis="columns", inplace=True)
+
+        # Method TWO: Fill all nan values with mean of column
+        mean_method = data.copy()
+        mean_method['bmi'].fillna(mean_method['bmi'].mean(), inplace=True)
+        mean_method['smoking_status'].fillna(Counter(mean_method['smoking_status']).most_common(1)[0][0], inplace=True)
+
+        # Method THREE: Fill all nan values with linear regression
+        print(removed_column_method)
