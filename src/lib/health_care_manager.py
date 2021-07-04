@@ -1,11 +1,12 @@
 import pandas as pd
 import numpy as np
 import inquirer
+import math
 
 from ..config.config import Config
 from matplotlib import pyplot as plt
 from collections import Counter
-import math
+from sklearn.linear_model import LinearRegression
 
 
 class HealthCareManager:
@@ -29,7 +30,7 @@ class HealthCareManager:
             self.analyze_data()
 
         elif answer["options"] == self._choices[1]:
-        
+
             self.clean_data()
         else:
             exit(0)
@@ -41,6 +42,7 @@ class HealthCareManager:
         data = pd.read_csv(self.config.health_care_csv_path)
 
         # Replace boolean values to be verbose
+        # TO DO -> Do it with pandas replace methods
         data["stroke"] = ["No stroke" if x == 0 else "Had a stroke" for x in data["stroke"]]
         data["hypertension"] = ["No hypertension" if x == 0 else "Had hypertension" for x in data["hypertension"]]
         data["ever_married"] = ["Never married" if x == "No" else "Has Married Before" for x in data["ever_married"]]
@@ -66,21 +68,21 @@ class HealthCareManager:
         # Scatter plot for age and weight
         _, scatter = plt.subplots()
         im = scatter.scatter(
-            data["bmi"],
+            data["age"],
             data["avg_glucose_level"],
-            c=data["age"],
+            c=data["bmi"],
             cmap="Greens",
             edgecolors="black",
             linewidth=1,
             alpha=0.75,
         )
 
-        scatter.set_title("BMI in relation with Average Glucose Level")
-        scatter.set_xlabel("BMI")
+        scatter.set_title("Age in relation with Average Glucose Level")
+        scatter.set_xlabel("Age")
         scatter.set_ylabel("Average Glucose Level")
         clb = plt.colorbar(im)
         clb.ax.tick_params(labelsize=8)
-        clb.ax.set_title("Age", fontsize=8)
+        clb.ax.set_title("BMI", fontsize=8)
 
         # Enumerable percentages
         # TO DO -> Make size dynamic
@@ -98,16 +100,29 @@ class HealthCareManager:
         """Runs the second question and cleans data"""
 
         # Replace the unknown values of the smoking columns as nan, so pandas can auto remove
-        data = pd.read_csv(self.config.health_care_csv_path, na_values=['Unknown'])
+        data = pd.read_csv(self.config.health_care_csv_path, na_values=["Unknown"])
 
         # Method ONE: Remove columns
         removed_column_method = data.copy()
         removed_column_method.dropna(how="any", axis="columns", inplace=True)
 
         # Method TWO: Fill all nan values with mean of column
+        # Note: Obviously missing data in the "smoking_status" column will not be replaced, as they don't have a mean value
         mean_method = data.copy()
-        mean_method['bmi'].fillna(mean_method['bmi'].mean(), inplace=True)
-        mean_method['smoking_status'].fillna(Counter(mean_method['smoking_status']).most_common(1)[0][0], inplace=True)
+        mean_method["bmi"].fillna(mean_method["bmi"].mean(), inplace=True)
 
         # Method THREE: Fill all nan values with linear regression
-        print(removed_column_method)
+        # Note: We will not be using categorical data in producing the linear regression model
+        train_data = data.copy().dropna(subset=["bmi"], how="any", axis="index")
+        linear_regression_model = LinearRegression().fit(train_data[["age", "avg_glucose_level"]], train_data["bmi"])
+
+        linear_reg_method = data.copy()
+        # For each element in bmi check if it is np.nan and predict value if it is
+        for i in linear_reg_method.index:
+            linear_reg_method.at[i, "bmi"] = (
+                linear_regression_model.predict(
+                    np.array([[linear_reg_method.at[i, "age"], linear_reg_method.at[i, "avg_glucose_level"]]])
+                )[0]
+                if np.isnan(linear_reg_method.at[i, "bmi"])
+                else linear_reg_method.at[i, "bmi"]
+            )
