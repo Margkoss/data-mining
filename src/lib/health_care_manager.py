@@ -7,6 +7,7 @@ from ..config.config import Config
 from matplotlib import pyplot as plt
 from collections import Counter
 from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn.preprocessing import LabelEncoder
 
 
@@ -31,8 +32,8 @@ class HealthCareManager:
             self.analyze_data()
 
         elif answer["options"] == self._choices[1]:
+            matrices = self.clean_data()
 
-            self.clean_data()
         else:
             exit(0)
 
@@ -112,7 +113,8 @@ class HealthCareManager:
         mean_method = data.copy()
         mean_method["bmi"].fillna(mean_method["bmi"].mean(), inplace=True)
 
-        # Method THREE: Fill all nan values with prediction from linear regression
+        # Create train data and prediction matrices for Linear Regression and KNN Regression
+
         train_data = data.copy().dropna(subset=["bmi"], how="any", axis="index").drop("id", axis="columns")
 
         # Apply label encoding and one hot encoding to categorical data
@@ -121,24 +123,38 @@ class HealthCareManager:
         train_data.gender = LabelEncoder().fit_transform(train_data.gender)
         train_data = pd.get_dummies(data=train_data)
 
+        # Apply encoding to output data as well
+        predction_matrix = data.copy().drop("id", axis="columns")
+        predction_matrix.smoking_status = LabelEncoder().fit_transform(predction_matrix.smoking_status)
+        predction_matrix.gender = LabelEncoder().fit_transform(predction_matrix.gender)
+        predction_matrix.ever_married = predction_matrix.ever_married.replace(["Yes", "No"], [1, 0])
+        predction_matrix = pd.get_dummies(data=predction_matrix)
+
         # Create Linear regression Model
         linear_regression_model = LinearRegression().fit(train_data.drop("bmi", axis="columns"), train_data["bmi"])
 
-        # Apply encoding to output data as well
-        lin_reg_tr = data.copy().drop("id", axis="columns")
-        lin_reg_tr.smoking_status = LabelEncoder().fit_transform(lin_reg_tr.smoking_status)
-        lin_reg_tr.gender = LabelEncoder().fit_transform(lin_reg_tr.gender)
-        lin_reg_tr.ever_married = lin_reg_tr.ever_married.replace(["Yes", "No"], [1, 0])
-        lin_reg_tr = pd.get_dummies(data=lin_reg_tr)
-
+        # Method THREE: Fill all nan values with prediction from linear regression
         linear_reg_method = data.copy()
 
-        # For each element in bmi check if it is np.nan and predict value if it is
-        for i in lin_reg_tr.index:
+        # For each element in prediction matrix check if it is np.nan and predict value if it is and place it in data
+        for i in predction_matrix.index:
             linear_reg_method.at[i, "bmi"] = (
-                linear_regression_model.predict(np.array([lin_reg_tr.loc[i].drop("bmi", axis="index")]))[0]
-                if np.isnan(lin_reg_tr.at[i, "bmi"])
-                else lin_reg_tr.at[i, "bmi"]
+                linear_regression_model.predict(np.array([predction_matrix.loc[i].drop("bmi", axis="index")]))[0]
+                if np.isnan(predction_matrix.at[i, "bmi"])
+                else predction_matrix.at[i, "bmi"]
             )
 
         # Method FOUR: Fill all nan values with prediction from KNN
+        knn_reg_method = data.copy()
+
+        knn_model = KNeighborsRegressor(n_neighbors=5).fit(train_data.drop("bmi", axis="columns"), train_data["bmi"])
+
+        # For each element in prediction matrix check if it is np.nan and predict value if it is and place it in data
+        for i in predction_matrix.index:
+            knn_reg_method.at[i, "bmi"] = (
+                knn_model.predict(np.array([predction_matrix.loc[i].drop("bmi", axis="index")]))[0]
+                if np.isnan(predction_matrix.at[i, "bmi"])
+                else predction_matrix.at[i, "bmi"]
+            )
+
+        return [removed_column_method, mean_method, linear_reg_method, knn_reg_method]
