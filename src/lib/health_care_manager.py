@@ -7,6 +7,7 @@ from ..config.config import Config
 from matplotlib import pyplot as plt
 from collections import Counter
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import LabelEncoder
 
 
 class HealthCareManager:
@@ -111,18 +112,33 @@ class HealthCareManager:
         mean_method = data.copy()
         mean_method["bmi"].fillna(mean_method["bmi"].mean(), inplace=True)
 
-        # Method THREE: Fill all nan values with linear regression
-        # Note: We will not be using categorical data in producing the linear regression model
-        train_data = data.copy().dropna(subset=["bmi"], how="any", axis="index")
-        linear_regression_model = LinearRegression().fit(train_data[["age", "avg_glucose_level"]], train_data["bmi"])
+        # Method THREE: Fill all nan values with prediction from linear regression
+        train_data = data.copy().dropna(subset=["bmi"], how="any", axis="index").drop("id", axis="columns")
+
+        # Apply label encoding and one hot encoding to categorical data
+        train_data.smoking_status = LabelEncoder().fit_transform(train_data.smoking_status)
+        train_data.ever_married = train_data.ever_married.replace(["Yes", "No"], [1, 0])
+        train_data.gender = LabelEncoder().fit_transform(train_data.gender)
+        train_data = pd.get_dummies(data=train_data)
+
+        # Create Linear regression Model
+        linear_regression_model = LinearRegression().fit(train_data.drop("bmi", axis="columns"), train_data["bmi"])
+
+        # Apply encoding to output data as well
+        lin_reg_tr = data.copy().drop("id", axis="columns")
+        lin_reg_tr.smoking_status = LabelEncoder().fit_transform(lin_reg_tr.smoking_status)
+        lin_reg_tr.gender = LabelEncoder().fit_transform(lin_reg_tr.gender)
+        lin_reg_tr.ever_married = lin_reg_tr.ever_married.replace(["Yes", "No"], [1, 0])
+        lin_reg_tr = pd.get_dummies(data=lin_reg_tr)
 
         linear_reg_method = data.copy()
+
         # For each element in bmi check if it is np.nan and predict value if it is
-        for i in linear_reg_method.index:
+        for i in lin_reg_tr.index:
             linear_reg_method.at[i, "bmi"] = (
-                linear_regression_model.predict(
-                    np.array([[linear_reg_method.at[i, "age"], linear_reg_method.at[i, "avg_glucose_level"]]])
-                )[0]
-                if np.isnan(linear_reg_method.at[i, "bmi"])
-                else linear_reg_method.at[i, "bmi"]
+                linear_regression_model.predict(np.array([lin_reg_tr.loc[i].drop("bmi", axis="index")]))[0]
+                if np.isnan(lin_reg_tr.at[i, "bmi"])
+                else lin_reg_tr.at[i, "bmi"]
             )
+
+        # Method FOUR: Fill all nan values with prediction from KNN
