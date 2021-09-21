@@ -1,4 +1,7 @@
+from ..config.config import Config
+from matplotlib import pyplot as plt
 import pandas as pd
+
 
 # Doc2Vec & utility preprocessing modules
 from gensim.parsing.preprocessing import preprocess_string
@@ -8,10 +11,7 @@ from gensim.models import Doc2Vec
 # Classifier
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
-from sklearn.metrics import accuracy_score, recall_score, f1_score
-
-from ..config.config import Config
-from matplotlib import pyplot as plt
+from sklearn.metrics import recall_score, f1_score, precision_score
 
 
 class SpamManager:
@@ -45,28 +45,28 @@ class SpamManager:
         return emails
 
     def evaluate_classifier(self, predicted_results, actual_results):
-        """Calculate and display the accuracy, recall and f1 classifier metrics"""
+        """Calculate and display the precision, recall and f1 classifier metrics"""
 
         # Calculate each of the scores
-        accuracy = accuracy_score(actual_results, predicted_results)
+        precision = precision_score(actual_results, predicted_results)
         recall = recall_score(actual_results, predicted_results)
         f1 = f1_score(actual_results, predicted_results)
 
-        scores = [accuracy, recall, f1]
+        scores = [precision, recall, f1]
 
         plt.bar(
             x=[1, 2, 3],
             height=scores,
-            tick_label=["Accuracy", "Recall", "F1"],
+            tick_label=["Precision", "Recall", "F1"],
         )
 
         # Display value above each bar
         for index, value in enumerate(scores):
             plt.text(
                 index + 1,
-                value + 0.05,
+                0.5,
                 str(round(value, 2)),
-                color="blue",
+                color="white",
                 fontweight="bold",
             )
 
@@ -75,6 +75,7 @@ class SpamManager:
         plt.show()
 
     def run_question2(self):
+        """Create neural network classifier from Doc2Vec model and evaluate"""
 
         # Read csv
         dataset = pd.read_csv(self.config.spam_csv_path)
