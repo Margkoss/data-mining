@@ -8,6 +8,7 @@ inquirer = "*"
 matplotlib = "*"
 pandas = "*"
 scikit-learn = "*"
+gensim = "*"
 
 [dev-packages]
 black = "*"

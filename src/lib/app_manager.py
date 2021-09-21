@@ -2,6 +2,7 @@ import inquirer
 
 from ..config.config import Config
 from .health_care_manager import HealthCareManager
+from .spam_manager import SpamManager
 
 
 class AppManager:
@@ -30,4 +31,5 @@ class AppManager:
             HealthCareManager().initialize()
         else:
             # TO DO -> Add manager for Questions 2
+            SpamManager().initialize()
             pass
